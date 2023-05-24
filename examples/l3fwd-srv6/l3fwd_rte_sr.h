@@ -65,12 +65,12 @@ struct rte_seg{
 	uint8_t ip[16];
 };
 
-uint8_t get_segment_type(struct rte_seg *seg_list){
-	return seg_list->ip[0];
+uint8_t *get_segment_locator(struct rte_seg *seg_list){
+	return seg_list->ip;
 }
 
-uint8_t get_segment_length(struct rte_seg *seg_list){
-	return seg_list->ip[1];
+uint8_t *get_segment_function(struct rte_seg *seg_list){
+	return seg_list->ip+12;
 }
 
 //缺陷代码 test only
@@ -84,17 +84,17 @@ void srv6_parse_packet(struct rte_ipv6_hdr *ipv6_hdr) {
   
   // 遍历Segment List
   for(uint8_t i = 0; i < srh_hdr->seg_left; i++) {
-    uint8_t segment_type = get_segment_type(seg_list);
-    uint8_t segment_length = get_segment_length(seg_list);
-    uint8_t *segment_data = seg_list + 2;
+    uint8_t *segment_type = get_segment_function(seg_list);
+/*    uint8_t segment_length = get_segment_length(seg_list);
+    uint8_t *segment_data = seg_list + 2; */
     
     // 根据Segment Type执行相应的操作
-    switch (segment_type) {
+    switch (*segment_type) {
       case END:
-        process_segment_type_x(segment_data, segment_length);
+/*         process_segment_type_x(segment_data, segment_length); */
         break;
       case END_DT4:
-        process_segment_type_y(segment_data, segment_length);
+/*         process_segment_type_y(segment_data, segment_length); */
         break;
       // 其他Segment Type的处理逻辑
       default:
@@ -103,25 +103,28 @@ void srv6_parse_packet(struct rte_ipv6_hdr *ipv6_hdr) {
     }
     
     // 更新Segment List指针
-    seg_list += segment_length;
+    seg_list += 1;
   }
   
   // 最后一个Segment的处理逻辑
-  uint8_t segment_type = get_segment_type(seg_list);
-  uint8_t segment_length = get_segment_length(seg_list);
-  uint8_t *segment_data = seg_list + 2;
+  uint8_t *segment_type = get_segment_function(seg_list);
+  uint8_t *segment_loc = get_segment_locator(seg_list);
+
   
   // 根据最后一个Segment Type执行相应的操作
-  switch (segment_type) {
-    case SEGMENT_TYPE_X:
+  switch (*segment_type) {
+/*     case SEGMENT_TYPE_X:
       process_segment_type_x(segment_data, segment_length);
       break;
     case SEGMENT_TYPE_Y:
-      process_segment_type_y(segment_data, segment_length);
-      break;
+      process_segment_type_y(segment_data, segment_length); 
+      break; */
     // 其他Segment Type的处理逻辑
     default:
       // 处理未知的Segment Type
+		srh_hdr->seg_left--;
+		ipv6_hdr->dst_addr[0]=*segment_loc;
+		ipv6_hdr->dst_addr[12]=*segment_type;
       break;
   }
 }
@@ -184,55 +187,6 @@ struct rte_srh_segment_ext {
 	rte_be32_t id;		/**< Packet ID */
 } __rte_packed;
 
-/* IPv6 fragment extension header size */
-#define RTE_SRV6_SEG_HDR_SIZE	sizeof(struct rte_srh_segment_ext)
-
-/**
- * Parse next IPv6 header extension
- *
- * This function checks if proto number is an IPv6 extensions and parses its
- * data if so, providing information on next header and extension length.
- *
- * @param p
- *   Pointer to an extension raw data.
- * @param proto
- *   Protocol number extracted from the "next header" field from
- *   the IPv6 header or the previous extension.
- * @param ext_len
- *   Extension data length.
- * @return
- *   next protocol number if proto is an IPv6 extension, -EINVAL otherwise
- */
-__rte_experimental
-static inline int
-rte_ipv6_get_next_ext(const uint8_t *p, int proto, size_t *ext_len)
-{
-	int next_proto;
-
-	switch (proto) {
-	case IPPROTO_AH:
-		next_proto = *p++;
-		*ext_len = (*p + 2) * sizeof(uint32_t);
-		break;
-
-	case IPPROTO_HOPOPTS:
-	case IPPROTO_ROUTING:
-	case IPPROTO_DSTOPTS:
-		next_proto = *p++;
-		*ext_len = (*p + 1) * sizeof(uint64_t);
-		break;
-
-	case IPPROTO_FRAGMENT:
-		next_proto = *p;
-		*ext_len = RTE_IPV6_FRAG_HDR_SIZE;
-		break;
-
-	default:
-		return -EINVAL;
-	}
-
-	return next_proto;
-}
 
 #ifdef __cplusplus
 }
