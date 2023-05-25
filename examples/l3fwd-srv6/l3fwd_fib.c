@@ -146,7 +146,7 @@ fib_parse_packet(struct rte_mbuf *mbuf,
 	/* IPv6 */
 	else {
 		ipv6_hdr = (struct rte_ipv6_hdr *)(eth_hdr + 1);
-		if(ipv6_hdr->proto==IPPROTO_HOPOPTS){
+		if(ipv6_hdr->proto==IPPROTO_ROUTING){
 /* 			ext_srh=(struct rte_srh *)(ipv6_hdr + 1);
 			rte_seg_list=(struct rte_seg *)(ext_srh + 1);
 			for(uint8_t i=0;i<ext_srh->seg_left;i++){
