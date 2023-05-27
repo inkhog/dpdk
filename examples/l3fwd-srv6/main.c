@@ -121,7 +121,6 @@ static uint16_t nb_lcore_params = sizeof(lcore_params_array_default) /
 static struct rte_eth_conf port_conf = {
 	.rxmode = {
 		.mq_mode = ETH_MQ_RX_RSS,
-		.max_rx_pkt_len = RTE_ETHER_MAX_LEN,
 		.split_hdr_size = 0,
 		.offloads = DEV_RX_OFFLOAD_CHECKSUM,
 	},
@@ -179,7 +178,7 @@ static struct l3fwd_lkp_mode l3fwd_fib_lkp = {
 
 /*
  * 198.18.0.0/16 are set aside for RFC2544 benchmarking (RFC5735).
- * 198.18.{0-7}.0/24 = Port {0-7}
+ * 198.18.{0-15}.0/24 = Port {0-15}
  */
 const struct ipv4_l3fwd_route ipv4_l3fwd_route_array[] = {
 	{RTE_IPV4(198, 18, 0, 0), 24, 0},
@@ -190,11 +189,19 @@ const struct ipv4_l3fwd_route ipv4_l3fwd_route_array[] = {
 	{RTE_IPV4(198, 18, 5, 0), 24, 5},
 	{RTE_IPV4(198, 18, 6, 0), 24, 6},
 	{RTE_IPV4(198, 18, 7, 0), 24, 7},
+	{RTE_IPV4(198, 18, 8, 0), 24, 8},
+	{RTE_IPV4(198, 18, 9, 0), 24, 9},
+	{RTE_IPV4(198, 18, 10, 0), 24, 10},
+	{RTE_IPV4(198, 18, 11, 0), 24, 11},
+	{RTE_IPV4(198, 18, 12, 0), 24, 12},
+	{RTE_IPV4(198, 18, 13, 0), 24, 13},
+	{RTE_IPV4(198, 18, 14, 0), 24, 14},
+	{RTE_IPV4(198, 18, 15, 0), 24, 15},
 };
 
 /*
  * 2001:200::/48 is IANA reserved range for IPv6 benchmarking (RFC5180).
- * 2001:200:0:{0-7}::/64 = Port {0-7}
+ * 2001:200:0:{0-f}::/64 = Port {0-15}
  */
 const struct ipv6_l3fwd_route ipv6_l3fwd_route_array[] = {
 	{{32, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 0},
@@ -205,6 +212,14 @@ const struct ipv6_l3fwd_route ipv6_l3fwd_route_array[] = {
 	{{32, 1, 2, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 5},
 	{{32, 1, 2, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 6},
 	{{32, 1, 2, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 7},
+	{{32, 1, 2, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 8},
+	{{32, 1, 2, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 9},
+	{{32, 1, 2, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 10},
+	{{32, 1, 2, 0, 0, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 11},
+	{{32, 1, 2, 0, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 12},
+	{{32, 1, 2, 0, 0, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 13},
+	{{32, 1, 2, 0, 0, 0, 0, 14, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 14},
+	{{32, 1, 2, 0, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0}, 64, 15},
 };
 
 /*
@@ -699,28 +714,7 @@ parse_args(int argc, char **argv)
 			break;
 
 		case CMD_LINE_OPT_ENABLE_JUMBO_NUM: {
-			const struct option lenopts = {
-				"max-pkt-len", required_argument, 0, 0
-			};
 
-			port_conf.rxmode.offloads |= DEV_RX_OFFLOAD_JUMBO_FRAME;
-			port_conf.txmode.offloads |= DEV_TX_OFFLOAD_MULTI_SEGS;
-
-			/*
-			 * if no max-pkt-len set, use the default
-			 * value RTE_ETHER_MAX_LEN.
-			 */
-			if (getopt_long(argc, argvopt, "",
-					&lenopts, &option_index) == 0) {
-				ret = parse_max_pkt_len(optarg);
-				if (ret < 64 || ret > MAX_JUMBO_PKT_LEN) {
-					fprintf(stderr,
-						"invalid maximum packet length\n");
-					print_usage(prgname);
-					return -1;
-				}
-				port_conf.rxmode.max_rx_pkt_len = ret;
-			}
 			break;
 		}
 
@@ -833,6 +827,7 @@ print_ethaddr(const char *name, const struct rte_ether_addr *eth_addr)
 int
 init_mem(uint16_t portid, unsigned int nb_mbuf)
 {
+	struct l3fwd_event_resources *evt_rsrc = l3fwd_get_eventdev_rsrc();
 	struct lcore_conf *qconf;
 	int socketid;
 	unsigned lcore_id;
@@ -1037,13 +1032,13 @@ l3fwd_poll_resource_setup(void)
 
 		if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE)
 			local_port_conf.txmode.offloads |=
-				DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+				RTE_ETH_TX_OFFLOAD_MBUF_FAST_FREE;
 
 		local_port_conf.rx_adv_conf.rss_conf.rss_hf &=
 			dev_info.flow_type_rss_offloads;
 
 		if (dev_info.max_rx_queues == 1)
-			local_port_conf.rxmode.mq_mode = ETH_MQ_RX_NONE;
+			local_port_conf.rxmode.mq_mode = RTE_ETH_MQ_RX_NONE;
 
 		if (local_port_conf.rx_adv_conf.rss_conf.rss_hf !=
 				port_conf.rx_adv_conf.rss_conf.rss_hf) {
