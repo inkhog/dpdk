@@ -127,8 +127,8 @@ fib_parse_packet(struct rte_mbuf *mbuf,
 	struct rte_ipv6_hdr *ipv6_hdr;
 
 	/**Move to l3fwd_rte_sr.h*/
-/* 	struct rte_srh *ext_srh;
-	struct rte_seg *rte_seg_list; */
+	struct rte_srh *ext_srh;
+	struct rte_seg *rte_seg_list;
 
 	
 	
@@ -147,13 +147,13 @@ fib_parse_packet(struct rte_mbuf *mbuf,
 	else {
 		ipv6_hdr = (struct rte_ipv6_hdr *)(eth_hdr + 1);
 		if(ipv6_hdr->proto==IPPROTO_ROUTING){
-/* 			ext_srh=(struct rte_srh *)(ipv6_hdr + 1);
+			ext_srh=(struct rte_srh *)(ipv6_hdr + 1);
 			rte_seg_list=(struct rte_seg *)(ext_srh + 1);
 			for(uint8_t i=0;i<ext_srh->seg_left;i++){
 				rte_seg_list=(struct rte_seg *)(rte_seg_list + 1);
-			}
-			ext_srh->seg_left--; */
-			srv6_parse_packet(ipv6_hdr);
+			}	
+			ext_srh->seg_left--;
+			//srv6_parse_packet(ipv6_hdr);
 
 
 			//rte_mov16(ipv6, (const uint8_t *)rte_seg_list->ip);

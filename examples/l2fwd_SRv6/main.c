@@ -38,6 +38,7 @@
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
 #include <rte_string_fns.h>
+#include "rte_sr.h"
 
 static volatile bool force_quit;
 
@@ -100,6 +101,12 @@ static struct rte_eth_conf port_conf = {
 };
 
 struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
+/**for test-only*/
+struct rte_srh l2fwd_srv6_ext={
+	.proto=IPPROTO_UDP,
+	.ext_len=5,
+	
+};
 
 
 /* Per-port statistics struct */
